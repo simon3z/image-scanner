@@ -10,7 +10,7 @@ LABEL INSTALL="docker run --rm -it --privileged -v /etc/:/host/etc/ -e IMAGE=IMA
 
 LABEL RUN="docker run -dt --privileged -v /proc/:/hostproc/ -v /sys/fs/cgroup:/sys/fs/cgroup  -v /var/log:/var/log -v /tmp:/tmp -v /run:/run -v /var/lib/docker/devicemapper/metadata/:/var/lib/docker/devicemapper/metadata/ -v /dev/:/dev/ -v /etc/image-scanner/:/etc/image-scanner --env container=docker --net=host --cap-add=SYS_ADMIN --ipc=host IMAGE"
 
-RUN echo 'PS1="[image-scanner]#  "' > /etc/profile.d/ps1.sh
+RUN echo 'PS1="[image-scanner]# "' > /etc/profile.d/ps1.sh
 
 COPY ./ /root/image-scanner/
 
