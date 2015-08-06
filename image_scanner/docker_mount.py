@@ -224,7 +224,7 @@ class DockerMount(object):
                     ''.format(str(image_tuple.thin_device_size), pool_name,
                               str(image_tuple.thin_device_id))
 
-            cmd = ['dmsetup', 'create', self.dev_name,
+            cmd = ['dmsetup', '--noudevsync', 'create', self.dev_name,
                    '--table', '{0}'.format(table)]
             return self.subp(cmd)
         else:
@@ -237,7 +237,17 @@ class DockerMount(object):
         '''
         Removes the thin device given a device name
         '''
-        cmd = ['dmsetup', 'remove', device]
+        cmd = ['dmsetup', '--noudevsync', 'remove', device]
+        return self.subp(cmd)
+
+    def wait_udev_settle(self, wait_device=None):
+        '''
+        Watches the udev event queue, and exits if all current events are
+        handled
+        '''
+        cmd = ['udevadm', 'settle']
+        if wait_device:
+            cmd.extend(('--exit-if-exists', wait_device))
         return self.subp(cmd)
 
     def subp(self, cmd):
@@ -290,6 +300,7 @@ class DockerMount(object):
             mount_point = "/mnt/" if self.mnt_point is None else self.mnt_point
             mnt_dir = os.path.join(mount_point, self.dev_name)
             thin_pathname = os.path.join("/dev/mapper", self.dev_name)
+            self.wait_udev_settle(wait_device=thin_pathname)
             return_info = self._mount(container_id=container_id,
                                       thin_pathname=thin_pathname,
                                       mount_path=mnt_dir,
