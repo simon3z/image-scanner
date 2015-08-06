@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: image-scanner
+  name: image-scanner
+spec:
+  ports:
+  - name: 5001-tcp
+    port: 5001
+    protocol: TCP
+    targetPort: 5001
+  selector:
+    name: image-scanner
+---
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: image-scanner
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: image-scanner
+      labels:
+        name: image-scanner
+    spec:
+# NOTE: uncomment this part to configure the service account used
+#       to spawn the pod replicas (need capability to run privileged
+#       containers).
+#     serviceAccountName: <<service-account-name>>
+      containers:
+      - name: image-scanner
+        image: docker.io/fsimonce/image-scanner:latest
+        command:
+        - /usr/bin/image-scanner-d
+        - --host
+        - 0.0.0.0
+        env:
+          - name: container
+            value: docker
+        ports:
+        - containerPort: 5001
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /dev
+          name: system-dev
+        - mountPath: /hostproc
+          name: system-proc
+        - mountPath: /var/run/docker.sock
+          name: docker-socket
+        - mountPath: /var/lib/docker/devicemapper/metadata
+          name: devicemapper-metadata
+      volumes:
+      - hostPath:
+          path: /dev
+        name: system-dev
+      - hostPath:
+          path: /proc
+        name: system-proc
+      - hostPath:
+          path: /var/run/docker.sock
+        name: docker-socket
+      - hostPath:
+          path: /var/lib/docker/devicemapper/metadata
+        name: devicemapper-metadata
