@@ -153,10 +153,6 @@ if __name__ == '__main__':
         parser.print_help()
         sys.exit(1)
 
-    if os.geteuid() is not 0:
-        print "Must be run as root"
-        sys.exit(1)
-
     if args.profile is None and not args.allprofiles:
         print "No profile selected with -p from "\
               "/etc/image-scanner/image-scanner-client.conf"
