@@ -140,6 +140,7 @@ class Worker(object):
 
         self.scan_list = None
         self.rpms = {}
+        self.rpms_errors = {}
 
     def set_procs(self, number):
 
@@ -335,19 +336,21 @@ class Worker(object):
         f = Scan(image, cids, output)
         try:
             if f.get_release():
-
                 t = timeit.Timer(f.scan).timeit(number=1)
                 logging.debug("Scanned chroot for image {0}"
                               " completed in {1} seconds"
                               .format(image, t))
                 timeit.Timer(f.report_results).timeit(number=1)
-                image_rpms = f._get_rpms()
-                self.rpms[image] = image_rpms
             else:
                 # This is not a RHEL image or container
                 f._report_not_rhel(image)
         except subprocess.CalledProcessError:
             pass
+
+        try:
+            self.rpms[image] = f._get_rpms()
+        except Exception as e:
+            self.rpms_errors[image] = str(e)
 
         start = time.time()
         f.DM.cleanup(f.dm_results)
@@ -416,6 +419,9 @@ class Worker(object):
     def _get_rpms_by_obj(self, docker_obj):
         return self.rpms[docker_obj]
 
+    def _get_rpms_error_by_obj(self, docker_obj):
+        return self.rpms_errors.get(docker_obj, None)
+
     def dump_json_log(self):
         '''
         Creates a log of information about the scan and what was
@@ -449,10 +455,13 @@ class Worker(object):
         for docker_obj in self.scan_list:
             json_log['host_results'][docker_obj] = {}
             tmp_obj = json_log['host_results'][docker_obj]
+            tmp_obj['rpms'] = self._get_rpms_by_obj(docker_obj)
+            rpms_error = self._get_rpms_error_by_obj(docker_obj)
+            if rpms_error is not None:
+                tmp_obj['rpmsError'] = rpms_error
             if 'msg' in self.ac.return_json[docker_obj].keys():
                 tmp_obj['isRHEL'] = False
             else:
-                tmp_obj['rpms'] = self._get_rpms_by_obj(docker_obj)
                 tmp_obj['isRHEL'] = True
                 xml_path = self.ac.return_json[docker_obj]['xml_path']
                 tmp_obj['cve_summary'] = \
