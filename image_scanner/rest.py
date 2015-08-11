@@ -32,6 +32,7 @@ from image_scanner_client.image_scanner_client import ImageScannerClientError
 import requests
 import urlparse
 import uwsgi
+import json
 
 application = flask.Flask(__name__, static_path='/var/tmp/image-scanner/')
 # app.config.update(SERVER_NAME='127.0.0.1:5001')
@@ -89,6 +90,22 @@ def create_tuple(in_args, url_root, rest_host, rest_port):
     return _tmp_tuple
 
 
+def _request_to_json(request):
+    ''' Gets the json of the request handling chunked requests too '''
+    if request.data != '':
+        return request.json
+
+    chunked_data = ''
+
+    while True:
+        chunk_read = uwsgi.chunked_read()
+        if chunk_read == '':
+            break
+        chunked_data += chunk_read
+
+    return json.loads(chunked_data)
+
+
 @application.route(os.path.join(rest_path, "test"), methods=['GET'])
 def hello_world():
     ''' Test method'''
@@ -116,7 +133,8 @@ def images():
 def inspect_container():
     ''' Returns inspect data of a container'''
     global connection
-    inspect_data = connection.inspect_container(request.json['cid'])
+    json_request = _request_to_json(request)
+    inspect_data = connection.inspect_container(json_request['cid'])
     return jsonify(inspect_data)
 
 
@@ -124,7 +142,8 @@ def inspect_container():
 def inspect_image():
     ''' Returns inspect data of an image'''
     global connection
-    inspect_data = connection.inspect_image(request.json['iid'])
+    json_request = _request_to_json(request)
+    inspect_data = connection.inspect_image(json_request['iid'])
     return jsonify(inspect_data)
 
 
@@ -148,7 +167,8 @@ def scan():
     except Exception as error:
         return jsonify({'Error': error})
 
-    arg_tup = create_tuple(request.json, request.url_root, host, port)
+    json_request = _request_to_json(request)
+    arg_tup = create_tuple(json_request, request.url_root, host, port)
     try:
         worker = Worker(arg_tup)
     except ImageScannerClientError:
